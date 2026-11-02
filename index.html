@@ -1,375 +1,134 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tạo phụ đề tiếng Việt từ video</title>
-<style>
-  :root {
-    --bg: #f5f6f8; --card: #ffffff; --text: #1d2330; --muted: #69718a;
-    --border: #dde1ea; --accent: #2f6df6; --accent-text: #ffffff; --ok: #1a8f4c;
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #12151c; --card: #1b202b; --text: #e8ebf3; --muted: #9aa3ba;
-      --border: #2d3446; --accent: #5b8cff; --accent-text: #0b1020; --ok: #4cd08a;
-      color-scheme: dark;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    line-height: 1.5;
-  }
-  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  p.sub { margin: 0 0 20px; color: var(--muted); }
-  .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 18px; margin-bottom: 16px;
-  }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
-  select, input[type="text"], input[type="email"], input[type="file"] {
-    width: 100%; padding: 9px 10px; border-radius: 8px; font: inherit;
-    border: 1px solid var(--border); background: var(--bg); color: var(--text);
-  }
-  .check { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--text); font-size: .95rem; }
-  .check input { width: 18px; height: 18px; }
-  button {
-    font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 8px;
-    padding: 10px 18px; background: var(--accent); color: var(--accent-text);
-  }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
-  .bar { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 14px; }
-  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-  #status { margin-top: 10px; font-size: .92rem; color: var(--muted); min-height: 1.4em; }
-  #status.ok { color: var(--ok); }
-  video { width: 100%; max-height: 460px; background: #000; border-radius: 10px; }
-  video::cue { font-size: 1.1rem; }
-  .list { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
-  .item { padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: .93rem; }
-  .item:last-child { border-bottom: 0; }
-  .item:hover { background: var(--bg); }
-  .item small { color: var(--muted); display: block; }
-  .item em { color: var(--muted); font-style: normal; font-size: .85rem; }
-  .note { font-size: .85rem; color: var(--muted); margin-top: 10px; }
-  [hidden] { display: none !important; }
-</style>
-</head>
-<body>
-<main>
-  <h1>Tạo phụ đề tiếng Việt từ video</h1>
-  <p class="sub">Nhận dạng giọng nói &rarr; dịch sang tiếng Việt &rarr; xem trước và tải file .srt. Âm thanh được xử lý ngay trên máy bạn.</p>
+"""
+Nhận dạng giọng nói -> dịch sang tiếng Việt -> ghép phụ đề vào video.
 
-  <section class="card">
-    <label for="file">Chọn video hoặc audio</label>
-    <input type="file" id="file" accept="video/*,audio/*">
+Cài đặt:
+    pip install faster-whisper deep-translator
+    # Cần cài FFmpeg (https://ffmpeg.org/download.html) và thêm vào PATH
+    # Phần dịch dùng Google Translate nên cần có Internet.
 
-    <div class="grid" style="margin-top:14px">
-      <div>
-        <label for="model">Model nhận dạng</label>
-        <select id="model">
-          <option value="Xenova/whisper-tiny">Tiny (nhanh nhất, ~40 MB)</option>
-          <option value="Xenova/whisper-base" selected>Base (cân bằng, ~75 MB)</option>
-          <option value="Xenova/whisper-small">Small (chính xác hơn, ~250 MB)</option>
-        </select>
-      </div>
-      <div>
-        <label for="lang">Ngôn ngữ trong video</label>
-        <select id="lang">
-          <option value="" data-code="Autodetect">Tự phát hiện</option>
-          <option value="vietnamese" data-code="vi">Tiếng Việt</option>
-          <option value="english" data-code="en">Tiếng Anh</option>
-          <option value="japanese" data-code="ja">Tiếng Nhật</option>
-          <option value="korean" data-code="ko">Tiếng Hàn</option>
-          <option value="chinese" data-code="zh-CN">Tiếng Trung</option>
-          <option value="french" data-code="fr">Tiếng Pháp</option>
-          <option value="german" data-code="de">Tiếng Đức</option>
-          <option value="spanish" data-code="es">Tiếng Tây Ban Nha</option>
-          <option value="thai" data-code="th">Tiếng Thái</option>
-        </select>
-      </div>
-      <div>
-        <label for="email">Email (tùy chọn, tăng hạn mức dịch)</label>
-        <input type="email" id="email" placeholder="ban@example.com">
-      </div>
-    </div>
+Cách dùng:
+    python translate_subtitle.py video.mp4
+    python translate_subtitle.py video.mp4 --model medium --bilingual
+    python translate_subtitle.py video.mp4 --src en --soft
+    python translate_subtitle.py video.mp4 --color "#ffeb3b" --size 32
+"""
+import argparse
+import subprocess
+from pathlib import Path
 
-    <label class="check"><input type="checkbox" id="bilingual"> Hiện cả bản gốc dưới dòng tiếng Việt</label>
+from deep_translator import GoogleTranslator
+from faster_whisper import WhisperModel
 
-    <div class="row">
-      <button id="start" disabled>Bắt đầu tạo phụ đề</button>
-    </div>
-    <div class="bar"><div id="progress"></div></div>
-    <div id="status">Hãy chọn một file để bắt đầu.</div>
-    <p class="note">Lần đầu chạy sẽ tải model về trình duyệt (cần Internet). Phần dịch dùng dịch vụ MyMemory nên cũng cần Internet. Video dài sẽ tốn nhiều RAM và thời gian.</p>
-  </section>
 
-  <section class="card" id="result" hidden>
-    <video id="player" controls></video>
-    <div class="row">
-      <button id="dlSrt">Tải file .srt</button>
-      <button id="dlVtt" class="secondary">Tải file .vtt</button>
-      <button id="dlMp4">Xuất video .mp4 (kèm phụ đề)</button>
-    </div>
-    <p class="note">File .mp4 xuất ra chứa phụ đề tiếng Việt dạng track riêng (không mã hóa lại nên rất nhanh, giữ nguyên chất lượng). Bật phụ đề trong VLC, QuickTime, trình phát điện thoại... là thấy. Muốn ghi cứng phụ đề vào hình, dùng file .srt với CapCut/VLC hoặc script Python <code>translate_subtitle.py</code>. Bấm vào một dòng bên dưới để nhảy tới đoạn đó.</p>
-    <div class="list" id="list" style="margin-top:12px"></div>
-  </section>
-</main>
+def format_time(seconds: float) -> str:
+    ms = int(round(seconds * 1000))
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-<script type="module">
-import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2";
 
-env.allowLocalModels = false;
+def transcribe(video: Path, model_size: str, device: str, src_lang: str | None):
+    compute_type = "float16" if device == "cuda" else "int8"
+    print(f"[1/3] Nhận dạng giọng nói (model '{model_size}', {device})...")
+    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    segments, info = model.transcribe(
+        str(video),
+        language=src_lang,   # None = tự phát hiện ngôn ngữ
+        vad_filter=True,
+        beam_size=5,
+    )
+    print(f"      Ngôn ngữ phát hiện: {info.language} (độ tin cậy {info.language_probability:.0%})")
+    # segments là generator -> chuyển thành list để dùng lại
+    return [(s.start, s.end, s.text.strip()) for s in segments], info.language
 
-const $ = (id) => document.getElementById(id);
-const fileEl = $("file"), startBtn = $("start"), statusEl = $("status"), barEl = $("progress");
-const player = $("player"), listEl = $("list"), resultEl = $("result");
 
-let file = null, segments = [], texts = [], originals = [];
-let videoUrl = null, vttUrl = null;
-let transcriber = null, loadedModel = null;
+def translate_segments(segments, src_lang: str):
+    print(f"[2/3] Dịch {len(segments)} đoạn sang tiếng Việt...")
+    if src_lang == "vi":
+        print("      Video đã là tiếng Việt, bỏ qua bước dịch.")
+        return [t for _, _, t in segments]
 
-function setStatus(msg, ok = false) { statusEl.textContent = msg; statusEl.className = ok ? "ok" : ""; }
-function setProgress(p) { barEl.style.width = Math.max(0, Math.min(100, p)) + "%"; }
+    translator = GoogleTranslator(source="auto", target="vi")
+    results = []
+    for i, (_, _, text) in enumerate(segments, start=1):
+        try:
+            vi = translator.translate(text) or text
+        except Exception as e:  # lỗi mạng / bị giới hạn -> giữ nguyên bản gốc
+            print(f"      Lỗi dịch đoạn {i}: {e}")
+            vi = text
+        results.append(vi)
+        print(f"      {i}/{len(segments)}: {vi}")
+    return results
 
-function fmt(sec, sep) {
-  const ms = Math.round(sec * 1000);
-  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000), r = ms % 1000;
-  const p = (n, l = 2) => String(n).padStart(l, "0");
-  return `${p(h)}:${p(m)}:${p(s)}${sep}${p(r, 3)}`;
-}
 
-fileEl.addEventListener("change", () => {
-  file = fileEl.files[0] || null;
-  startBtn.disabled = !file;
-  setStatus(file ? `Đã chọn: ${file.name}` : "Hãy chọn một file để bắt đầu.");
-  setProgress(0);
-});
+def write_srt(segments, translated, srt_path: Path, bilingual: bool):
+    with open(srt_path, "w", encoding="utf-8") as f:
+        for i, ((start, end, original), vi) in enumerate(zip(segments, translated), start=1):
+            f.write(f"{i}\n{format_time(start)} --> {format_time(end)}\n")
+            f.write(f"{vi}\n")
+            if bilingual and vi != original:
+                f.write(f"{original}\n")
+            f.write("\n")
+    print(f"      Đã lưu phụ đề: {srt_path}")
 
-async function decodeAudio(f) {
-  const buf = await f.arrayBuffer();
-  const ctx = new AudioContext({ sampleRate: 16000 });
-  const audio = await ctx.decodeAudioData(buf);
-  await ctx.close();
-  return audio.getChannelData(0);
-}
 
-async function translate(text, code, email) {
-  const url = new URL("https://api.mymemory.translated.net/get");
-  url.searchParams.set("q", text);
-  url.searchParams.set("langpair", `${code}|vi`);
-  if (email) url.searchParams.set("de", email);
-  const res = await fetch(url);
-  const json = await res.json();
-  if (json.responseStatus !== 200) throw new Error(json.responseDetails || "Lỗi dịch");
-  return json.responseData.translatedText;
-}
+def hex_to_ass(color: str) -> str:
+    """'#ffeb3b' -> '&H003BEBFF' (ASS dùng thứ tự BGR)."""
+    c = color.lstrip("#")
+    r, g, b = c[0:2], c[2:4], c[4:6]
+    return f"&H00{b}{g}{r}".upper().replace("&H", "&H")
 
-startBtn.addEventListener("click", async () => {
-  if (!file) return;
-  startBtn.disabled = true;
-  resultEl.hidden = true;
-  segments = []; texts = []; originals = [];
 
-  try {
-    const modelId = $("model").value;
-    const langSel = $("lang");
-    const language = langSel.value || undefined;
-    const code = langSel.selectedOptions[0].dataset.code;
-    const email = $("email").value.trim();
-    const bilingual = $("bilingual").checked;
+def merge_into_video(video: Path, srt: Path, out: Path, soft: bool,
+                     color: str = "#ffeb3b", size: int = 24, bold: bool = True):
+    print("[3/3] Ghép phụ đề vào video...")
+    if soft:
+        # Phụ đề mềm: bật/tắt được trong trình phát, không mã hóa lại video -> rất nhanh
+        cmd = [
+            "ffmpeg", "-y", "-i", str(video), "-i", str(srt),
+            "-c", "copy", "-c:s", "mov_text",
+            "-metadata:s:s:0", "language=vie", str(out),
+        ]
+    else:
+        # Phụ đề cứng: ghi thẳng vào hình, mọi trình phát đều thấy
+        srt_escaped = str(srt).replace("\\", "/").replace(":", "\\:")
+        style = (
+            f"FontName=Arial,FontSize={size},Bold={1 if bold else 0},"
+            f"PrimaryColour={hex_to_ass(color)},OutlineColour=&H00000000,"
+            "BorderStyle=1,Outline=2,Shadow=1,MarginV=30"
+        )
+        cmd = [
+            "ffmpeg", "-y", "-i", str(video),
+            "-vf", f"subtitles='{srt_escaped}':force_style='{style}'",
+            "-c:a", "copy", str(out),
+        ]
+    subprocess.run(cmd, check=True)
+    print(f"      Xong: {out}")
 
-    // 1. Tải model
-    if (!transcriber || loadedModel !== modelId) {
-      setStatus("Đang tải model nhận dạng giọng nói...");
-      transcriber = await pipeline("automatic-speech-recognition", modelId, {
-        progress_callback: (p) => {
-          if (p.status === "progress") setProgress((p.progress || 0) * 0.3);
-        },
-      });
-      loadedModel = modelId;
-    }
 
-    // 2. Giải mã âm thanh
-    setProgress(30);
-    setStatus("Đang tách âm thanh từ file...");
-    const audio = await decodeAudio(file);
+def main():
+    p = argparse.ArgumentParser(description="Tạo video phụ đề tiếng Việt từ video bất kỳ ngôn ngữ")
+    p.add_argument("video", type=Path)
+    p.add_argument("--model", default="small", help="tiny | base | small | medium | large-v3")
+    p.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
+    p.add_argument("--src", default=None, help="Mã ngôn ngữ gốc (en, ja, ko, zh...). Bỏ trống = tự phát hiện")
+    p.add_argument("--bilingual", action="store_true", help="Hiện cả tiếng Việt và bản gốc")
+    p.add_argument("--soft", action="store_true", help="Phụ đề mềm (nhanh, bật/tắt được) thay vì ghi cứng")
+    p.add_argument("--color", default="#ffeb3b", help="Màu chữ phụ đề dạng hex, ví dụ #ffeb3b (vàng), #ffffff (trắng)")
+    p.add_argument("--size", type=int, default=24, help="Cỡ chữ phụ đề khi ghi cứng (mặc định 24, thử 28-36 cho chữ to)")
+    p.add_argument("--no-bold", action="store_true", help="Không in đậm")
+    args = p.parse_args()
 
-    // 3. Nhận dạng
-    setProgress(40);
-    setStatus("Đang nhận dạng giọng nói (có thể mất vài phút)...");
-    await new Promise((r) => setTimeout(r, 50));
-    const out = await transcriber(audio, {
-      chunk_length_s: 30,
-      stride_length_s: 5,
-      return_timestamps: true,
-      task: "transcribe",
-      language,
-    });
+    srt_path = args.video.with_name(args.video.stem + "_vi.srt")
+    out_path = args.video.with_name(args.video.stem + "_vi.mp4")
 
-    const chunks = (out.chunks || []).filter((c) => c.text && c.text.trim());
-    segments = chunks.map((c) => {
-      const start = c.timestamp[0] ?? 0;
-      return { start, end: c.timestamp[1] ?? start + 2 };
-    });
-    originals = chunks.map((c) => c.text.trim());
+    segments, lang = transcribe(args.video, args.model, args.device, args.src)
+    translated = translate_segments(segments, lang)
+    write_srt(segments, translated, srt_path, args.bilingual)
+    merge_into_video(args.video, srt_path, out_path, args.soft,
+                     args.color, args.size, not args.no_bold)
 
-    // 4. Dịch
-    const skipTranslate = language === "vietnamese";
-    let failed = 0;
-    for (let i = 0; i < originals.length; i++) {
-      setProgress(60 + (i / Math.max(1, originals.length)) * 40);
-      setStatus(skipTranslate ? "Hoàn tất nhận dạng." : `Đang dịch ${i + 1}/${originals.length}...`);
-      if (skipTranslate) { texts.push(originals[i]); continue; }
-      try {
-        texts.push(await translate(originals[i], code, email));
-      } catch (e) {
-        failed++;
-        texts.push(originals[i]);
-      }
-    }
 
-    setProgress(100);
-    showResult(bilingual && !skipTranslate);
-    setStatus(
-      failed
-        ? `Xong, nhưng ${failed} đoạn chưa dịch được (có thể hết hạn mức MyMemory, hãy nhập email để tăng hạn mức). Các đoạn đó giữ nguyên bản gốc.`
-        : `Hoàn tất: ${segments.length} dòng phụ đề.`,
-      !failed
-    );
-  } catch (err) {
-    console.error(err);
-    setStatus("Có lỗi: " + (err.message || err));
-  } finally {
-    startBtn.disabled = false;
-  }
-});
-
-function buildText(bilingual, i) {
-  return bilingual && originals[i] !== texts[i] ? `${texts[i]}\n${originals[i]}` : texts[i];
-}
-
-function buildSrt(bilingual) {
-  return segments.map((s, i) =>
-    `${i + 1}\n${fmt(s.start, ",")} --> ${fmt(s.end, ",")}\n${buildText(bilingual, i)}\n`
-  ).join("\n");
-}
-
-function buildVtt(bilingual) {
-  return "WEBVTT\n\n" + segments.map((s, i) =>
-    `${fmt(s.start, ".")} --> ${fmt(s.end, ".")}\n${buildText(bilingual, i)}\n`
-  ).join("\n");
-}
-
-function showResult(bilingual) {
-  resultEl.hidden = false;
-
-  if (videoUrl) URL.revokeObjectURL(videoUrl);
-  if (vttUrl) URL.revokeObjectURL(vttUrl);
-  videoUrl = URL.createObjectURL(file);
-  vttUrl = URL.createObjectURL(new Blob([buildVtt(bilingual)], { type: "text/vtt" }));
-
-  player.innerHTML = "";
-  player.src = videoUrl;
-  const track = document.createElement("track");
-  track.kind = "subtitles"; track.label = "Tiếng Việt"; track.srclang = "vi";
-  track.src = vttUrl; track.default = true;
-  player.appendChild(track);
-  track.addEventListener("load", () => { track.track.mode = "showing"; });
-
-  listEl.innerHTML = "";
-  segments.forEach((s, i) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    const time = document.createElement("small");
-    time.textContent = fmt(s.start, ".").slice(0, 8);
-    const vi = document.createElement("div");
-    vi.textContent = texts[i];
-    div.append(time, vi);
-    if (bilingual && originals[i] !== texts[i]) {
-      const o = document.createElement("em");
-      o.textContent = originals[i];
-      div.appendChild(o);
-    }
-    div.addEventListener("click", () => { player.currentTime = s.start; player.play(); });
-    listEl.appendChild(div);
-  });
-
-  $("dlSrt").onclick = () => download(buildSrt(bilingual), baseName() + "_vi.srt", "application/x-subrip");
-  $("dlVtt").onclick = () => download(buildVtt(bilingual), baseName() + "_vi.vtt", "text/vtt");
-  $("dlMp4").onclick = () => exportMp4(bilingual);
-}
-
-let ffmpeg = null;
-
-async function exportMp4(bilingual) {
-  const btn = $("dlMp4");
-  btn.disabled = true;
-  try {
-    if (typeof FFmpeg === "undefined") throw new Error("Không tải được FFmpeg.wasm (cần Internet).");
-    if (file.size > 1.5e9) throw new Error("File quá lớn (>1.5 GB) để xử lý trong trình duyệt. Hãy dùng script Python.");
-
-    if (!ffmpeg) {
-      setStatus("Đang tải FFmpeg.wasm (~25 MB, chỉ lần đầu)...");
-      ffmpeg = FFmpeg.createFFmpeg({
-        log: false,
-        corePath: "https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js",
-      });
-      await ffmpeg.load();
-    }
-    ffmpeg.setProgress(({ ratio }) => setProgress(Math.min(100, ratio * 100)));
-
-    const ext = (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
-    const inName = "input." + ext;
-    setProgress(0);
-    setStatus("Đang nạp video vào bộ nhớ...");
-    ffmpeg.FS("writeFile", inName, await FFmpeg.fetchFile(file));
-    ffmpeg.FS("writeFile", "sub.srt", new TextEncoder().encode(buildSrt(bilingual)));
-
-    setStatus("Đang ghép phụ đề vào video...");
-    await ffmpeg.run(
-      "-i", inName, "-i", "sub.srt",
-      "-map", "0:v?", "-map", "0:a?", "-map", "1:0",
-      "-c:v", "copy", "-c:a", "copy", "-c:s", "mov_text",
-      "-metadata:s:s:0", "language=vie",
-      "out.mp4"
-    );
-
-    const data = ffmpeg.FS("readFile", "out.mp4");
-    const url = URL.createObjectURL(new Blob([data.buffer], { type: "video/mp4" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = baseName() + "_vi.mp4";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-    for (const f of [inName, "sub.srt", "out.mp4"]) { try { ffmpeg.FS("unlink", f); } catch (e) {} }
-    setProgress(100);
-    setStatus("Đã xuất video .mp4 kèm phụ đề tiếng Việt.", true);
-  } catch (err) {
-    console.error(err);
-    setStatus("Lỗi khi xuất mp4: " + (err.message || err));
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function baseName() { return file.name.replace(/\.[^.]+$/, ""); }
-
-function download(content, name, type) {
-  const a = document.createElement("a");
-  const url = URL.createObjectURL(new Blob([content], { type: type + ";charset=utf-8" }));
-  a.href = url; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-</script>
-</body>
-</html>
+if __name__ == "__main__":
+    main()
